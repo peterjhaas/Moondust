@@ -35,8 +35,8 @@
 
 <script>
 const GENERATION_COUNT = 10;
-const STATEMENT_SEPARATORS = /[!\.?]\s+/g;
-const PHRASE_SEPARATORS = /[,;:\-\n]+/g;
+const STATEMENT_SEPARATORS = /[!?.]\s+/; // removed global flag for safer split
+const PHRASE_SEPARATORS = /[,;:\-\n]+/;
 const WORD_SEPARATOR = " ";
 const STATEMENT_LENGTH_SPREAD = 0.5;
 
@@ -55,22 +55,37 @@ class Model {
   }
 
   loadStatementIntoModel(statement) {
-    if (typeof statement !== "string" || statement.trim() === "") return;
+    if (typeof statement !== "string") return;
+    statement = statement.trim();
+    if (!statement) return;
 
-    // Phrase extraction for cut-up mode
-    const phrases = statement.split(PHRASE_SEPARATORS).map(p => p.trim()).filter(Boolean);
-    phrases.forEach(p => this.phrases.push(p));
+    let phrases = [];
+    try {
+      phrases = String(statement).split(PHRASE_SEPARATORS);
+    } catch (e) {
+      phrases = [statement];
+    }
 
-    const words = statement
-      .split(WORD_SEPARATOR)
+    phrases
+      .map(p => p.trim())
+      .filter(Boolean)
+      .forEach(p => this.phrases.push(p));
+
+    let words = [];
+    try {
+      words = String(statement).split(WORD_SEPARATOR);
+    } catch (e) {
+      words = [statement];
+    }
+
+    words
       .map(w => w.trim())
-      .filter(Boolean);
-
-    words.forEach(word => {
-      if (!this.words.includes(word)) {
-        this.words.push(word);
-      }
-    });
+      .filter(Boolean)
+      .forEach(word => {
+        if (!this.words.includes(word)) {
+          this.words.push(word);
+        }
+      });
 
     if (words.length > 0) {
       this.statementCount++;
@@ -79,12 +94,24 @@ class Model {
   }
 
   loadTextIntoModel(text) {
-    if (typeof text !== "string" || text.trim() === "") return;
+    if (typeof text !== "string") return;
+    text = text.trim();
+    if (!text) return;
 
-    const statements = text.split(STATEMENT_SEPARATORS) || [];
+    let statements = [];
+
+    try {
+      statements = String(text).split(STATEMENT_SEPARATORS);
+    } catch (e) {
+      statements = [text];
+    }
+
+    if (!Array.isArray(statements)) {
+      statements = [String(text)];
+    }
 
     statements.forEach(s => {
-      if (typeof s === "string") {
+      if (typeof s === "string" && s.trim()) {
         this.loadStatementIntoModel(s);
       }
     });
@@ -113,6 +140,10 @@ class Model {
   }
 
   generateCutupStatement() {
+    if (this.phrases.length === 0) {
+      return "(No phrases available)\n";
+    }
+
     const count = Math.max(1, Math.floor(Math.random() * 4));
     let result = [];
 
@@ -151,7 +182,9 @@ function createInputs() {
 }
 
 function generateText() {
-  const cutupMode = document.getElementById("cutupToggle").checked;
+  const toggle = document.getElementById("cutupToggle");
+  const cutupMode = toggle ? toggle.checked : false;
+
   const model = new Model(cutupMode);
 
   const boxes = document.querySelectorAll(".box");
@@ -173,13 +206,32 @@ function generateText() {
   }
 }
 
-// Basic tests
+// --- Tests ---
 function runTests() {
-  const m = new Model(true);
-  m.loadTextIntoModel("Cut this up, break it apart. Make it strange; make it new.");
-  const out = m.generateRandomStatement();
-  console.assert(typeof out === "string", "Cut-up test failed");
-  console.log("Cut-up mode test complete");
+  console.log("Running tests...");
+
+  // Test 1: empty model
+  const m1 = new Model();
+  console.assert(m1.generateRandomStatement().includes("No input"), "Test 1 failed");
+
+  // Test 2: normal input
+  const m2 = new Model();
+  m2.loadTextIntoModel("Hello world. Testing this system.");
+  console.assert(m2.words.length > 0, "Test 2 failed");
+
+  // Test 3: cut-up mode
+  const m3 = new Model(true);
+  m3.loadTextIntoModel("Cut this up, break it apart. Make it strange; make it new.");
+  const out3 = m3.generateRandomStatement();
+  console.assert(typeof out3 === "string", "Test 3 failed");
+
+  // Test 4: invalid input safety
+  const m4 = new Model();
+  m4.loadTextIntoModel(null);
+  m4.loadTextIntoModel(undefined);
+  console.assert(true, "Test 4 passed (no crash)");
+
+  console.log("All tests completed");
 }
 
 createInputs();
