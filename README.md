@@ -6,13 +6,15 @@ This application is writen in Python and uses WX to create a GUI.  it was later 
 # Major Update!
 Hello Friends, I'm reopening this file for the first time in a _long while_ to share a web-app version of the Python script! 
 
-# Missing Some Components? 
+## Missing Some Python Components? 
 
-## Install Pip
+Make sure you have the following bits installed!
+
+### Install Pip
 
 	> sudo easy_install pip 
 
 
-## Install WX
+### Install WX
 
 	> pip install -U wxPython
