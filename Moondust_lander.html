@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Moondust Web App</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#111; color:#eee; margin:0; }
+  header { background:#222; padding:10px; text-align:center; }
+  h1 { margin:0; font-size:20px; }
+  .container { padding:10px; }
+  .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+  textarea { width:100%; height:120px; resize:none; }
+  .box { background:#1a1a1a; padding:10px; border-radius:8px; }
+  .controls { margin-top:10px; display:flex; gap:10px; align-items:center; }
+  button { padding:10px 15px; font-size:14px; cursor:pointer; }
+  #output { width:100%; height:200px; margin-top:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Moondust: Dream Machine</h1>
+</header>
+
+<div class="container">
+  <div class="grid" id="inputGrid"></div>
+
+  <div class="controls">
+    <button onclick="generateText()">Generate</button>
+    <label><input type="checkbox" id="cutupToggle" /> Cut-Up Mode</label>
+  </div>
+
+  <textarea id="output" placeholder="Generated text will appear here..."></textarea>
+</div>
+
+<script>
+const GENERATION_COUNT = 10;
+const STATEMENT_SEPARATORS = /[!\.?]\s+/g;
+const PHRASE_SEPARATORS = /[,;:\-\n]+/g;
+const WORD_SEPARATOR = " ";
+const STATEMENT_LENGTH_SPREAD = 0.5;
+
+class Model {
+  constructor(cutupMode = false) {
+    this.words = [];
+    this.phrases = [];
+    this.statementCount = 0;
+    this.statementLengthCounter = 0;
+    this.cutupMode = cutupMode;
+  }
+
+  getAverageStatementLength() {
+    if (this.statementCount === 0) return 1;
+    return this.statementLengthCounter / this.statementCount;
+  }
+
+  loadStatementIntoModel(statement) {
+    if (typeof statement !== "string" || statement.trim() === "") return;
+
+    // Phrase extraction for cut-up mode
+    const phrases = statement.split(PHRASE_SEPARATORS).map(p => p.trim()).filter(Boolean);
+    phrases.forEach(p => this.phrases.push(p));
+
+    const words = statement
+      .split(WORD_SEPARATOR)
+      .map(w => w.trim())
+      .filter(Boolean);
+
+    words.forEach(word => {
+      if (!this.words.includes(word)) {
+        this.words.push(word);
+      }
+    });
+
+    if (words.length > 0) {
+      this.statementCount++;
+      this.statementLengthCounter += words.length;
+    }
+  }
+
+  loadTextIntoModel(text) {
+    if (typeof text !== "string" || text.trim() === "") return;
+
+    const statements = text.split(STATEMENT_SEPARATORS) || [];
+
+    statements.forEach(s => {
+      if (typeof s === "string") {
+        this.loadStatementIntoModel(s);
+      }
+    });
+  }
+
+  generateRandomStatement() {
+    if (this.cutupMode && this.phrases.length > 0) {
+      return this.generateCutupStatement();
+    }
+
+    if (this.words.length === 0) {
+      return "(No input text provided)\n";
+    }
+
+    const avg = this.getAverageStatementLength();
+    const len = Math.max(1, Math.floor(Math.random() * avg * STATEMENT_LENGTH_SPREAD));
+
+    let statement = [];
+
+    for (let i = 0; i < len; i++) {
+      const word = this.words[Math.floor(Math.random() * this.words.length)];
+      if (word) statement.push(word);
+    }
+
+    return statement.join(" ") + ".\n";
+  }
+
+  generateCutupStatement() {
+    const count = Math.max(1, Math.floor(Math.random() * 4));
+    let result = [];
+
+    for (let i = 0; i < count; i++) {
+      const phrase = this.phrases[Math.floor(Math.random() * this.phrases.length)];
+      if (phrase) result.push(phrase);
+    }
+
+    return result.join(", ") + ".\n";
+  }
+}
+
+function createInputs() {
+  const grid = document.getElementById("inputGrid");
+
+  for (let i = 0; i < 6; i++) {
+    const box = document.createElement("div");
+    box.className = "box";
+
+    const textarea = document.createElement("textarea");
+    textarea.placeholder = "Paste text here...";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+
+    const label = document.createElement("label");
+    label.textContent = " Include";
+
+    box.appendChild(textarea);
+    box.appendChild(document.createElement("br"));
+    box.appendChild(checkbox);
+    box.appendChild(label);
+
+    grid.appendChild(box);
+  }
+}
+
+function generateText() {
+  const cutupMode = document.getElementById("cutupToggle").checked;
+  const model = new Model(cutupMode);
+
+  const boxes = document.querySelectorAll(".box");
+
+  boxes.forEach(box => {
+    const textarea = box.querySelector("textarea");
+    const checkbox = box.querySelector("input");
+
+    if (checkbox && checkbox.checked && textarea) {
+      model.loadTextIntoModel(textarea.value || "");
+    }
+  });
+
+  const output = document.getElementById("output");
+  output.value = "";
+
+  for (let i = 0; i < GENERATION_COUNT; i++) {
+    output.value += model.generateRandomStatement();
+  }
+}
+
+// Basic tests
+function runTests() {
+  const m = new Model(true);
+  m.loadTextIntoModel("Cut this up, break it apart. Make it strange; make it new.");
+  const out = m.generateRandomStatement();
+  console.assert(typeof out === "string", "Cut-up test failed");
+  console.log("Cut-up mode test complete");
+}
+
+createInputs();
+runTests();
+</script>
+</body>
+</html>
